@@ -3,12 +3,18 @@ import { ReceiptPrinter } from './lib/receipt-printer.js';
 import { ReceiptSerial } from './lib/receipt-serial.js';
 import "./bootstrap.scss";
 
+const CONNECTED = 'connected';
+const DISCONNECTED = 'disconnected';
+
 ReceiptPrinter.init(Receipt);
 ReceiptSerial.init(Receipt);
 let conn = null;
 const $status = document.getElementById('status');
 const $open = document.getElementById('open');
-$status.textContent = 'status';
+const $close = document.getElementById('close');
+$close.classList.add('d-none');
+
+$status.textContent = DISCONNECTED;
 
 const bc = new BroadcastChannel('receipt_printer');
 const updateStatus = status => $status.textContent = status;
@@ -18,18 +24,23 @@ $open?.addEventListener('click',ev => {
   {
     conn = ReceiptSerial.connect();
     conn.on('ready',status => {
-      $open.disabled = true;
-      updateStatus('connected');
+      updateButton(true);
+      updateStatus(CONNECTED);
     });
     conn.on('status',status => {
       updateStatus(status);
     });
     conn.on('disconnect',status => {
-      updateStatus(status);
+      updateStatus(DISCONNECTED);
+      updateButton(false);
       conn = null;
-      $open.disabled = false;
     });
   }
+});
+
+$close?.addEventListener('click',ev => {
+  if(conn)
+    conn.close();
 });
 
 bc.addEventListener('message',async ev => {
@@ -54,3 +65,17 @@ bc.addEventListener('message',async ev => {
 window.addEventListener('close',ev => {
   bc.postMessage({ status: false },location.origin);
 });
+
+function updateButton(status,classname = 'd-none')
+{
+  if(status)
+  {
+    $open.classList.add('d-none');
+    $close.classList.remove('d-none');
+  }
+  else
+  {
+    $open.classList.remove('d-none');
+    $close.classList.add('d-none');
+  }
+}
